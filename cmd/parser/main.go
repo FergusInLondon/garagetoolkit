@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"go.fergus.london/canlog/pkg/canlog"
+	"go.fergus.london/garagetoolkit/pkg/canlog"
 )
 
 func main() {

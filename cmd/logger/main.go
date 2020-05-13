@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-systemd/daemon"
-	"go.fergus.london/canlog/pkg/canlog"
+	"go.fergus.london/garagetoolkit/pkg/canlog"
 )
 
 var (

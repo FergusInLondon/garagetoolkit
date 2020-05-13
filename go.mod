@@ -1,4 +1,4 @@
-module go.fergus.london/canlog
+module go.fergus.london/garagetoolkit
 
 go 1.14
 
