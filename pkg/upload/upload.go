@@ -44,6 +44,6 @@ func Connect(conf *Configuration) error {
 	return nil
 }
 
-func Upload(file io.Reader, fileInfo os.FileInfo) (int, error) {
+func Upload(file io.Reader, fileInfo os.FileInfo) (int64, error) {
 	return client.PutObject(bucketName, fileInfo.Name(), file, fileInfo.Size(), minio.PutObjectOptions{})
 }
