@@ -1,12 +1,27 @@
-# CANLog - Go utilities for CAN Bus logging
+# Garage Toolkit
 
-## Logger
+## Run Locally
 
-## Parser
+```
+$ sudo modprobe vcan
+$ sudo ip link add dev vcan0 type vcan
+$ sudo ip link set up vcan0 mtu 72
+```
 
-## Uploader
+## CAN Logging
 
+```
+$ go build ./cmd/logger
+$ ./logger vcan0
+```
 
-**Potential Activation:** Via systemd, when a specific network becomes available
+### Parsing CAN Logs
 
-## License
+```
+$ go build ./cmd/parser
+$ ./parser <path-to-log>
+```
+
+### Uploading CAN Logs
+
+**N/A**

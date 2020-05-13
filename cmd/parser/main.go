@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
-	"go.fergus.london/canlog/pkg/logger"
+	"go.fergus.london/canlog/pkg/canlog"
 )
 
 func main() {
@@ -14,22 +15,32 @@ func main() {
 		return
 	}
 
-	logFile, err := os.Open(os.Args[1])
-	if err != nil {
+	var (
+		logFile io.ReadCloser
+		entry   *canlog.DecodedMessage
+		err     error
+	)
+
+	if logFile, err = os.Open(os.Args[1]); err != nil {
 		panic(err)
 	}
 
-	messageDecoder := logger.NewCanMessageDecoder(logFile)
+	messageParser := canlog.NewParser(logFile)
+	defer logFile.Close()
 
+	entryCount := 0
 	for {
-		entry, err := messageDecoder.Iterate()
-		if entry == nil || err != nil {
-			fmt.Println("error encountered", err)
-			break
+		if entry, err = messageParser.Iterate(); err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			panic(err)
 		}
 
-		fmt.Println(entry)
+		fmt.Printf("[ %s ]\tMessage ID: '%d'\t%v\n", entry.Time.String(), entry.Frame.ID, entry.Frame.Data)
+		entryCount++
 	}
 
-	logFile.Close()
+	fmt.Printf("Successfully parsed '%s', with %d entries.\n", os.Args[1], entryCount)
 }
