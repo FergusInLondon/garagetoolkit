@@ -17,6 +17,8 @@ func main() {
 		panic(err)
 	}
 
+	log.Printf("connected to minio storage bucket")
+
 	var (
 		fileNames  = getFilesToUpload()
 		wg         = &sync.WaitGroup{}
@@ -25,14 +27,17 @@ func main() {
 
 	defer func() {
 		close(uploadChan)
+		log.Printf("waiting for uploads to complete.")
 		wg.Wait()
 	}()
 
 	wg.Add(poolCount)
 	for i := 0; i < poolCount; i++ {
+		log.Printf("starting upload worker (%d)", i)
 		go uploadWorker(wg, uploadChan)
 	}
 
+	log.Printf("got %d files to process", len(fileNames))
 	for _, file := range fileNames {
 		uploadChan <- file
 	}
@@ -46,31 +51,36 @@ func getFilesToUpload() []string {
 func uploadWorker(wg *sync.WaitGroup, inbound chan string) {
 	defer wg.Done()
 	for file := range inbound {
+		log.Printf("[ %s ] processing file", file)
+
 		f, err := os.Open(file)
 		if err != nil {
-			log.Println("error encountered opening file. skipping.", file, err)
+			log.Printf("[ %s ] unable to open file - %v", file, err)
 			continue
 		}
 
 		fileInfo, err := f.Stat()
 		if err != nil {
-			log.Println("invalid file info, skipping.", file, err)
+			log.Printf("[ %s ] invalid file info - %v", file, err)
 			f.Close()
 			continue
 		}
 
 		nBytes, err := upload.Upload(f, fileInfo)
 		if err != nil {
-			log.Println("failed to upload file, skipping.", file, err)
+			log.Printf("[ %s ] failed to upload file - %v", file, err)
 			f.Close()
 			continue
 		}
 
-		log.Println("uploaded file", nBytes, file)
+		log.Printf("[ %s ] uploaded file successfully (%d bytes)", file, nBytes)
 		f.Close()
 
 		if err := os.Remove(file); err != nil {
 			log.Println("unable to remove file", file, err)
+			continue
 		}
+
+		log.Printf("[ %s ] successfully uploaded file and removed local version", file)
 	}
 }
