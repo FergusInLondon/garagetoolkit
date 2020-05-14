@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -9,11 +10,14 @@ import (
 
 	"github.com/coreos/go-systemd/daemon"
 	"go.fergus.london/garagetoolkit/pkg/canlog"
+	"go.fergus.london/garagetoolkit/pkg/upload"
 )
 
 var (
 	inboundSignal = make(chan os.Signal)
 	logger        *canlog.Logger
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
 )
 
 func getArgument(idx int, def string) string {
@@ -49,6 +53,7 @@ func main() {
 
 	go sdNotifier()
 	log.Println(logger.Run())
+	<-ctx.Done()
 }
 
 // notify systemd that we're ready
@@ -62,8 +67,12 @@ func sdNotifier() {
 	daemon.SdNotify(false, daemon.SdNotifyReady)
 
 	for {
-		daemon.SdNotify(false, daemon.SdNotifyWatchdog)
-		time.Sleep(3 * time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(3 * time.Second):
+			daemon.SdNotify(false, daemon.SdNotifyWatchdog)
+		}
 	}
 }
 
@@ -80,4 +89,20 @@ func handleSigTerm() {
 	sig := <-inboundSignal
 	log.Println("received signal from operating system", sig.String())
 	log.Println("stopping canbus listener", logger.Stop())
+
+	if err := handleUploads(); err != nil {
+		log.Fatal("uploading failed", err)
+	}
+}
+
+//
+func handleUploads() error {
+	defer ctxCancel()
+
+	uploader, err := upload.NewDirectoryUploader(logsDirectory, &upload.Configuration{})
+	if err != nil {
+		return err
+	}
+
+	return uploader.Upload()
 }
