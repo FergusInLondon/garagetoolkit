@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -15,13 +16,14 @@ import (
 
 const (
 	defaultWatchdogInterval = "10"
-	bucketName       = "canlog"
-	bucketLocation   = "us-east-1"
+	bucketName              = "canlog"
+	bucketLocation          = ""
 )
 
 var (
 	inboundSignal = make(chan os.Signal)
 	logger        *canlog.Logger
+	logFile       *LogFile
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
 )
@@ -34,7 +36,7 @@ func getArgument(idx int, def string) string {
 	return os.Args[idx]
 }
 
-func getEnvironmentVariable(key, def) string {
+func getEnvironmentVariable(key, def string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
 	}
@@ -43,11 +45,11 @@ func getEnvironmentVariable(key, def) string {
 }
 
 func main() {
+	ctx, ctxCancel = context.WithCancel(context.Background())
 	signal.Notify(inboundSignal, syscall.SIGTERM, syscall.SIGABRT)
 	go handleSigTerm()
 
-	logFileName := getArgument(2, "canlog.bin")
-	logFile := CreateLogFile(logFileName)
+	logFile = CreateLogFile(getArgument(2, "canlog.bin"))
 	log.Println("opened log file for writing", logFile.FilePath())
 
 	canbusInterface := getArgument(1, "can0")
@@ -58,12 +60,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	defer func() {
-		log.Println("stopped listening for canbus frames")
-		logFile.Finish()
-		log.Println("closed log file")
-	}()
 
 	go sdNotifier()
 	log.Println(logger.Run())
@@ -81,14 +77,17 @@ func sdNotifier() {
 	daemon.SdNotify(false, daemon.SdNotifyReady)
 
 	watchdogInterval, err := strconv.Atoi(
-		getEnvironmentVariable("WATCHDOG_INTERVAL", defaultWatchdogInterval)
-	)
+		getEnvironmentVariable("WATCHDOG_INTERVAL", defaultWatchdogInterval))
+	if err != nil {
+		panic(err)
+	}
 
+	seconds := time.Duration(watchdogInterval/2) * time.Second
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After((watchdogInterval / 2) * time.Second):
+		case <-time.After(seconds * time.Second):
 			daemon.SdNotify(false, daemon.SdNotifyWatchdog)
 		}
 	}
@@ -117,9 +116,13 @@ func handleSigTerm() {
 func handleUploads() error {
 	defer ctxCancel()
 
-	uploadConfig = upload.GetConfig()
+	uploadConfig := upload.GetConfig()
 	uploadConfig.BucketName = getEnvironmentVariable("BUCKET_NAME", bucketName)
 	uploadConfig.BucketLocation = getEnvironmentVariable("BUCKET_LOCATION", bucketLocation)
+
+	log.Println("stopped listening for canbus frames")
+	logFile.Finish()
+	log.Println("closed log file")
 
 	uploader, err := upload.NewDirectoryUploader(logsDirectory, uploadConfig)
 	if err != nil {

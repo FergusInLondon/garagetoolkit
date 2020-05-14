@@ -1,6 +1,6 @@
 package upload
 
-import "github.com/Netflix/go-env"
+import "github.com/caarlos0/env/v6"
 
 // Configuration holds all of the options required to connect to minio or AWS S3.
 type Configuration struct {
@@ -16,7 +16,7 @@ type Configuration struct {
 // Configuration struct for further modification/amendment.
 func GetConfig() *Configuration {
 	environment := &Configuration{}
-	if err := env.Unmarshal(environment); err != nil {
+	if err := env.Parse(environment); err != nil {
 		panic("unable to parse environment!")
 	}
 

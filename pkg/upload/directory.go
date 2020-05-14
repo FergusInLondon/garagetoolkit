@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -50,11 +51,25 @@ func (du *DirectoryUploader) Upload() error {
 	}
 
 	for _, file := range files {
-		if !file.IsDir() {
-			uploadChan <- du.directory + "/" + file.Name()
+		// ignore directories
+		if file.IsDir() {
+			continue
 		}
+
+		// ignore partial logs
+		if strings.Contains(file.Name(), ".part") {
+			continue
+		}
+
+		// ignore dotfiles
+		if strings.HasPrefix(file.Name(), ".") {
+			continue
+		}
+
+		uploadChan <- du.directory + "/" + file.Name()
 	}
 
+	close(uploadChan)
 	wg.Wait()
 	return nil
 }
