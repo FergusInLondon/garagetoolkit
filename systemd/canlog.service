@@ -1,0 +1,21 @@
+[Unit]
+Description=CAN Logger Service
+Documentation=https://github.com/FergusInLondon/garagetoolkitConditionPathExists=/var/garagetoolkit
+After=canbus.service
+
+# CAN Logger is configured to notify systemd of status, via a watchdog,
+#  with an interval timeout of 10 seconds. Upon a failure it should restart.
+# It works under /var/garagetoolkit, a directory which is created prior to
+#  execution in the event it's not present.
+[Service]
+Type=notify
+WatchdogSec=10s
+Restart=on-failure
+WorkingDirectory=/var/garagetoolkit
+
+Environment="VAR=val" "KEY=val"
+ExecStartPre=/bin/mkdir -p /var/garagetoolkit/logs
+ExecStart=/usr/local/bin/canlog
+
+[Install]
+WantedBy=multi-user.target
