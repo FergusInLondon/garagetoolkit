@@ -12,16 +12,6 @@ var (
 	bucketName string
 )
 
-// Configuration holds all of the options required to connect to minio or AWS S3.
-type Configuration struct {
-	MinIOEndpoint    string
-	MinIOAccessKeyID string
-	MinIOAccessKey   string
-	UseSSL           bool
-	BucketName       string
-	BucketLocation   string
-}
-
 // Connect makes a connection to the object storage destination, and ensures that the
 // specified bucket is available - if it doesn't exist, it shall be created.
 func Connect(conf *Configuration) error {
